@@ -338,9 +338,9 @@ fi
 
 echo_debug "Updating fstab in inactive root partition ..."
 cat > "$TEMP_DIR/mnt_root/etc/fstab" << EOF
-PARTUUID=${INACTIVE_ROOT_PARTUUID}  /        ext4    defaults,noatime  0  1
-PARTUUID=${INACTIVE_BOOT_PARTUUID}  /boot    vfat    defaults          0  2
-PARTUUID=${HOME_PARTUUID}           /home    ext4    defaults,noatime  0  2
+PARTUUID=${INACTIVE_ROOT_PARTUUID}  /        ext4    defaults,noatime,discard  0  1
+PARTUUID=${INACTIVE_BOOT_PARTUUID}  /boot    vfat    defaults,noatime          0  2
+PARTUUID=${HOME_PARTUUID}           /home    ext4    defaults,noatime,discard  0  2
 EOF
 
 echo_debug "Unmounting partitions ..."

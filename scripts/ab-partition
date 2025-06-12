@@ -448,9 +448,9 @@ fi
 
 echo "Updating fstab for new partition layout ..."
 cat > "$NEW_ROOTFS/etc/fstab" << EOF
-PARTUUID=${ROOT1_PARTUUID}  /        ext4    defaults,noatime  0  1
-PARTUUID=${BOOT1_PARTUUID}  /boot    vfat    defaults          0  2
-PARTUUID=${PERSISTENT_PARTUUID}   /home    ext4    defaults,noatime  0  2
+PARTUUID=${ROOT1_PARTUUID}  /        ext4    defaults,noatime,discard  0  1
+PARTUUID=${BOOT1_PARTUUID}  /boot    vfat    defaults,noatime          0  2
+PARTUUID=${PERSISTENT_PARTUUID}   /home    ext4    defaults,noatime,discard  0  2
 EOF
 
 echo "Creating home partition expansion script ..."
