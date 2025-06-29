@@ -253,21 +253,40 @@ jobs:
 
           # Upload image files
           for file in promoted/*.img.gz; do
-            if [[ "$file" == *"AB_PARTITION"* ]]; then
-              gh release upload ${{ env.git_tag }} "$file"#"Lite base image"
-            elif [[ "$file" == *"lite"* ]]; then
-              gh release upload ${{ env.git_tag }} "$file"#"Lite upgrade image"
-            elif [[ "$file" == *"full"* ]]; then
-              gh release upload ${{ env.git_tag }} "$file"#"Full image"
+            if [ -f "$file" ]; then
+              echo "Processing image file: $file"
+              if [[ "$file" == *"AB_PARTITION"* ]]; then
+                gh release upload ${{ env.git_tag }} "$file"#"Lite base image"
+              elif [[ "$file" == *"lite"* ]]; then
+                gh release upload ${{ env.git_tag }} "$file"#"Lite upgrade image"
+              elif [[ "$file" == *"full"* ]]; then
+                gh release upload ${{ env.git_tag }} "$file"#"Full image"
+              else
+                gh release upload ${{ env.git_tag }} "$file"#"OS image"
+              fi
             else
-              gh release upload ${{ env.git_tag }} "$file"#"OS image"
+              echo "No image files found matching: release-files/*.img.gz"
             fi
           done
 
           # Upload other files
-          gh release upload ${{ env.git_tag }} promoted/*.sha256#"SHA256 checksums for integrity verification"
-          gh release upload ${{ env.git_tag }} promoted/*.info#"Installed package information"
-          gh release upload ${{ env.git_tag }} promoted/*.sbom.xz#"Software Bill of Materials (SBOM)"
+          for file in promoted/*.info; do
+            if [ -f "$file" ]; then
+              gh release upload ${{ env.git_tag }} promoted/*.info#"Installed package information"
+            fi
+          done
+
+          for file in promoted/*.sha256; do
+            if [ -f "$file" ]; then
+              gh release upload ${{ env.git_tag }} promoted/*.sha256#"SHA256 checksums for integrity verification"
+            fi
+          done
+          
+          for file in promoted/*.sbom.xz; do
+            if [ -f "$file" ]; then
+              gh release upload ${{ env.git_tag }} promoted/*.sbom.xz#"Software Bill of Materials (SBOM)"
+            fi
+          done
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -1069,9 +1088,15 @@ jobs:
           done
 
           # Upload other files
-          gh release upload ${{ env.git_tag }} release-files/*.sha256#"SHA256 checksums for integrity verification"
-          gh release upload ${{ env.git_tag }} release-files/*.info#"Installed package information"
-          gh release upload ${{ env.git_tag }} release-files/*.sbom.xz#"Software Bill of Materials (SBOM)"
+          for file in release-files/*.sha256; do
+            [[ -f "$file" ]] && gh release upload ${{ env.git_tag }} "$file"#"SHA256 checksums for integrity verification"
+          done
+          for file in release-files/*.info; do
+            [[ -f "$file" ]] && gh release upload ${{ env.git_tag }} "$file"#"Installed package information"
+          done
+          for file in release-files/*.sbom.xz; do
+            [[ -f "$file" ]] && gh release upload ${{ env.git_tag }} "$file"#"Software Bill of Materials (SBOM)"
+          done
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
