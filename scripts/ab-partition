@@ -400,7 +400,23 @@ chown -R root:root "$NEW_ROOTFS/lib/modules/"
 
 echo "Updating bootloader configuration ..."
 echo "Updating root parameter in cmdline.txt ..."
-if [ -f "$NEW_ROOTFS/boot/cmdline.txt" ]; then
+if [ -d "$NEW_ROOTFS/boot/firmware" ] && [ -f "$NEW_ROOTFS/boot/firmware/cmdline.txt" ]; then
+    echo "Firmware structure - edit the actual cmdline.txt in firmware directory ..."
+    cp "$NEW_ROOTFS/boot/firmware/cmdline.txt" "$NEW_ROOTFS/boot/firmware/cmdline.txt.bak"
+    sed -i "s|root=[^ ]*|root=PARTUUID=${ROOT1_PARTUUID}|" "$NEW_ROOTFS/boot/firmware/cmdline.txt"
+
+    cp "$NEW_ROOTFS/boot/firmware/cmdline.txt" "$NEW_ROOTFS/boot/firmware/cmdline-b.txt"
+    sed -i "s|PARTUUID=${ROOT1_PARTUUID}|PARTUUID=${ROOT2_PARTUUID}|" "$NEW_ROOTFS/boot/firmware/cmdline-b.txt"
+
+    echo
+    echo "New /boot/firmware/cmdline.txt content:"
+    cat "$NEW_ROOTFS/boot/firmware/cmdline.txt"
+    echo
+    echo "New /boot/firmware/cmdline-b.txt content:"
+    cat "$NEW_ROOTFS/boot/firmware/cmdline-b.txt"
+    echo
+elif [ -f "$NEW_ROOTFS/boot/cmdline.txt" ]; then
+    echo "Flat structure - edit cmdline.txt in boot root ..."
     cp "$NEW_ROOTFS/boot/cmdline.txt" "$NEW_ROOTFS/boot/cmdline.txt.bak"
     sed -i "s|root=[^ ]*|root=PARTUUID=${ROOT1_PARTUUID}|" "$NEW_ROOTFS/boot/cmdline.txt"
 
@@ -428,9 +444,18 @@ if [ -d "$ORIGINAL_ROOT/boot/firmware" ]; then
         
         target=$(readlink "$symlink")
         filename=$(basename "$symlink")
+        source_file="$NEW_ROOTFS/boot/$target"
+        dest_file="$NEW_ROOTFS/boot/$filename"
         
-        ln -sf "$target" "$NEW_ROOTFS/boot/$filename"
-        echo "Preserved symlink: $filename -> $target"
+        if [ -f "$source_file" ]; then
+            cp -a "$source_file" "$dest_file"
+            echo "Copied symlink target: $filename <- $target"
+        elif [ -d "$source_file" ]; then
+            cp -a "$source_file" "$dest_file"
+            echo "Copied symlink target directory: $filename <- $target"
+        else
+            echo "Not copying: $filename -> $target (target not found)"
+        fi
     done
 else
     echo "Legacy handling for flat structure ..."
