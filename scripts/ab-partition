@@ -365,15 +365,35 @@ mount -v "${PERSISTENT_DEV}" "${NEW_ROOTFS}/home" -t ext4
 echo "Copying root filesystem content ..."
 rsync -aHAXx --exclude /boot "$ORIGINAL_ROOT/" "$NEW_ROOTFS/"
 echo "Copying boot files ..."
-cp -a "$ORIGINAL_BOOT"/* "$NEW_ROOTFS/boot/"
+if [ -d "$ORIGINAL_ROOT/boot/firmware" ]; then
+    echo "Detected firmware subdirectory structure, preserving ..."
+    mkdir -p "$NEW_ROOTFS/boot/firmware"
+    cp -a "$ORIGINAL_BOOT"/* "$NEW_ROOTFS/boot/firmware/"
+    find "$ORIGINAL_ROOT/boot" -maxdepth 1 -type f -exec cp -a {} "$NEW_ROOTFS/boot/" \;
+else
+    echo "Using flat boot structure ..."
+    cp -a "$ORIGINAL_BOOT"/* "$NEW_ROOTFS/boot/"
+fi
 
 echo "Verifying critical boot files ..."
-for file in start.elf fixup.dat wlanpi-kernel8.img bootcode.bin; do
-    if ! cmp -s "$ORIGINAL_BOOT/$file" "$NEW_ROOTFS/boot/$file"; then
-        echo "WARNING: $file may not have copied correctly. Trying direct copy ..."
-        cp -a "$ORIGINAL_BOOT/$file" "$NEW_ROOTFS/boot/$file"
-    fi
-done
+
+if [ -d "$NEW_ROOTFS/boot/firmware" ]; then
+    echo "Check in /boot/firmware directory ..."
+    for file in start.elf fixup.dat wlanpi-kernel8.img bootcode.bin; do
+        if ! cmp -s "$ORIGINAL_BOOT/$file" "$NEW_ROOTFS/boot/firmware/$file"; then
+            echo "WARNING: $file may not have copied correctly to firmware directory. Trying direct copy ..."
+            cp -a "$ORIGINAL_BOOT/$file" "$NEW_ROOTFS/boot/firmware/$file"
+        fi
+    done
+else
+    echo "Check in boot directory for flat structure ..."
+    for file in start.elf fixup.dat wlanpi-kernel8.img bootcode.bin; do
+        if ! cmp -s "$ORIGINAL_BOOT/$file" "$NEW_ROOTFS/boot/$file"; then
+            echo "WARNING: $file may not have copied correctly. Trying direct copy ..."
+            cp -a "$ORIGINAL_BOOT/$file" "$NEW_ROOTFS/boot/$file"
+        fi
+    done
+fi
 
 echo "Making sure kernel modules are owned by root ..."
 chown -R root:root "$NEW_ROOTFS/lib/modules/"
@@ -398,46 +418,41 @@ else
     echo "ERROR: cmdline.txt not found in boot directory!"
 fi
 
-echo "Checking for boot directory symlinks ..."
-find "$ORIGINAL_ROOT/boot" -type l | while read -r symlink; do
-    if [ -z "$symlink" ]; then
-        continue
-    fi
-    
-    target=$(readlink "$symlink")
-    if [ -z "$target" ]; then
-        continue
-    fi
-    
-    filename=$(basename "$symlink")
-    
-    if [[ "$filename" == "overlays" && "$target" == "firmware/overlays" ]]; then
-        if [ ! -d "$NEW_ROOTFS/boot/overlays" ]; then
-            mkdir -p "$NEW_ROOTFS/boot/overlays"
-            
-            if [ -d "$ORIGINAL_BOOT/overlays" ]; then
-                cp -a "$ORIGINAL_BOOT/overlays/"* "$NEW_ROOTFS/boot/overlays/"
-                echo "Created overlays directory with content from original boot"
-            fi
+echo "Preserving boot directory symlinks ..."
+if [ -d "$ORIGINAL_ROOT/boot/firmware" ]; then
+    echo "For /boot/firmware/ structure, preserve all symlinks as-is ..."
+    find "$ORIGINAL_ROOT/boot" -maxdepth 1 -type l | while read -r symlink; do
+        if [ -z "$symlink" ]; then
+            continue
         fi
-        continue
-    fi
-    
-    if [[ "$target" == *"firmware"* ]]; then
-        echo "WARNING: Skipping firmware-related symlink: $filename -> $target"
-        continue
-    fi
-    
-    source_file="$NEW_ROOTFS/boot/$target"
-    dest_file="$NEW_ROOTFS/boot/$filename"
-    
-    if [ -f "$source_file" ]; then
-        cp -a "$source_file" "$dest_file"
-        echo "Copied file instead of symlink: $filename <- $target"
-    else
-        echo "Not copying: $filename -> $target (target not found)"
-    fi
-done
+        
+        target=$(readlink "$symlink")
+        filename=$(basename "$symlink")
+        
+        ln -sf "$target" "$NEW_ROOTFS/boot/$filename"
+        echo "Preserved symlink: $filename -> $target"
+    done
+else
+    echo "Legacy handling for flat structure ..."
+    find "$ORIGINAL_ROOT/boot" -type l | while read -r symlink; do
+        if [ -z "$symlink" ]; then
+            continue
+        fi
+        
+        target=$(readlink "$symlink")
+        filename=$(basename "$symlink")
+        
+        source_file="$NEW_ROOTFS/boot/$target"
+        dest_file="$NEW_ROOTFS/boot/$filename"
+        
+        if [ -f "$source_file" ]; then
+            cp -a "$source_file" "$dest_file"
+            echo "Copied file instead of symlink: $filename <- $target"
+        else
+            echo "Not copying: $filename -> $target (target not found)"
+        fi
+    done
+fi
 
 echo "Ensuring the overlay directory exists ..."
 if [ ! -d "$NEW_ROOTFS/boot/overlays" ] && [ -d "$ORIGINAL_BOOT/overlays" ]; then
