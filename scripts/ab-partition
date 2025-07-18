@@ -758,14 +758,28 @@ mkdir -p "$NEW_ROOTFS/etc/systemd/system/multi-user.target.wants"
 ln -sf "/etc/systemd/system/expand-home-partition.service" "$NEW_ROOTFS/etc/systemd/system/multi-user.target.wants/expand-home-partition.service"
 
 echo "Verifying final image integrity ..."
-if [ ! -f "$NEW_ROOTFS/boot/config.txt" ] || [ ! -f "$NEW_ROOTFS/boot/cmdline.txt" ] || [ ! -f "$NEW_ROOTFS/boot/wlanpi-kernel8.img" ]; then
-  echo "ERROR: critical boot files missing ..."
-  exit 1
-fi
-
-if ! grep -q "PARTUUID=${ROOT1_PARTUUID}" "$NEW_ROOTFS/boot/cmdline.txt"; then
-  echo "ERROR: root partition label not set in cmdline.txt ..."
-  exit 1
+if [ -d "$NEW_ROOTFS/boot/firmware" ]; then
+    echo "Check firmware structure ..."
+    if [ ! -f "$NEW_ROOTFS/boot/firmware/config.txt" ] || [ ! -f "$NEW_ROOTFS/boot/firmware/cmdline.txt" ] || [ ! -f "$NEW_ROOTFS/boot/firmware/wlanpi-kernel8.img" ]; then
+        echo "ERROR: critical boot files missing in firmware directory ..."
+        exit 1
+    fi
+    
+    if ! grep -q "PARTUUID=${ROOT1_PARTUUID}" "$NEW_ROOTFS/boot/firmware/cmdline.txt"; then
+        echo "ERROR: root partition label not set in firmware/cmdline.txt ..."
+        exit 1
+    fi
+else
+    echo "Check flat structure ..."
+    if [ ! -f "$NEW_ROOTFS/boot/config.txt" ] || [ ! -f "$NEW_ROOTFS/boot/cmdline.txt" ] || [ ! -f "$NEW_ROOTFS/boot/wlanpi-kernel8.img" ]; then
+        echo "ERROR: critical boot files missing ..."
+        exit 1
+    fi
+    
+    if ! grep -q "PARTUUID=${ROOT1_PARTUUID}" "$NEW_ROOTFS/boot/cmdline.txt"; then
+        echo "ERROR: root partition label not set in cmdline.txt ..."
+        exit 1
+    fi
 fi
 
 echo "Performing controlled cleanup and finalization ..."
