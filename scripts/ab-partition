@@ -436,7 +436,7 @@ fi
 
 echo "Preserving boot directory symlinks ..."
 if [ -d "$ORIGINAL_ROOT/boot/firmware" ]; then
-    echo "For /boot/firmware/ structure, preserve all symlinks as-is ..."
+    echo "For /boot/firmware/ structure, preserve symlinks as they are ..."
     find "$ORIGINAL_ROOT/boot" -maxdepth 1 -type l | while read -r symlink; do
         if [ -z "$symlink" ]; then
             continue
@@ -444,17 +444,13 @@ if [ -d "$ORIGINAL_ROOT/boot/firmware" ]; then
         
         target=$(readlink "$symlink")
         filename=$(basename "$symlink")
-        source_file="$NEW_ROOTFS/boot/$target"
-        dest_file="$NEW_ROOTFS/boot/$filename"
         
-        if [ -f "$source_file" ]; then
-            cp -a "$source_file" "$dest_file"
-            echo "Copied symlink target: $filename <- $target"
-        elif [ -d "$source_file" ]; then
-            cp -a "$source_file" "$dest_file"
-            echo "Copied symlink target directory: $filename <- $target"
+        rm -f "$NEW_ROOTFS/boot/$filename"
+        
+        if ln -sf "$target" "$NEW_ROOTFS/boot/$filename" 2>/dev/null; then
+            echo "Created symlink: $filename -> $target"
         else
-            echo "Not copying: $filename -> $target (target not found)"
+            echo "Failed to create symlink: $filename -> $target"
         fi
     done
 else
