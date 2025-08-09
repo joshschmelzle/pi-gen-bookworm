@@ -444,13 +444,19 @@ if [ -d "$ORIGINAL_ROOT/boot/firmware" ]; then
         
         target=$(readlink "$symlink")
         filename=$(basename "$symlink")
+        source_file="$NEW_ROOTFS/boot/$target"
+        dest_file="$NEW_ROOTFS/boot/$filename"
         
-        rm -f "$NEW_ROOTFS/boot/$filename"
-        
-        if ln -sf "$target" "$NEW_ROOTFS/boot/$filename" 2>/dev/null; then
-            echo "Created symlink: $filename -> $target"
+        echo "Processing symlink: $filename -> $target"
+        # FAT32 doesn't support symlinks, so copy the actual file/directory
+        if [ -f "$source_file" ]; then
+            cp -a "$source_file" "$dest_file"
+            echo "Copied symlink target as file: $filename <- $target"
+        elif [ -d "$source_file" ]; then
+            cp -a "$source_file" "$dest_file"  
+            echo "Copied symlink target directory: $filename <- $target"
         else
-            echo "Failed to create symlink: $filename -> $target"
+            echo "Warning: symlink target not found: $filename -> $target"
         fi
     done
 else
